@@ -1,0 +1,20 @@
+<h1>Add a New Book</h1>
+
+<%= form_with model: @book, url: books_path, method: :post do |form| %>
+  <div>
+    <%= form.label :title %>
+    <%= form.text_field :title %>
+  </div>
+
+  <div>
+    <%= form.label :author %>
+    <%= form.text_field :author %>
+  </div>
+
+  <div>
+    <%= form.label :genre %>
+    <%= form.text_field :genre %>
+  </div>
+
+  <%= form.submit "Add Book" %>
+<% end %>
