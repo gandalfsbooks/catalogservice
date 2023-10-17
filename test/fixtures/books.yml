@@ -1,11 +1,11 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  title: MyString
-  author: MyString
-  genre: MyString
+  title: The Poetry of a Killer
+  author: Ryan Hardy
+  genre: Crime
 
 two:
-  title: MyString
-  author: MyString
-  genre: MyString
+  title: The Gothic Sea
+  author: Joe Carroll
+  genre: Romance
