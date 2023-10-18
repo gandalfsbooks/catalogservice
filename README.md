@@ -1,26 +1,8 @@
 # README
 
-This is for the Catalog Service
+# Catalog Service
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+The Catalog Service is a web application that allows users to browse and manage books. It provides features such as creating, updating, and deleting books, as well as searching for books by title, author, or genre.
 
-Things you may want to cover:
+This README document provides information on how to set up and run the application, as well as any other necessary steps.
 
-* Ruby version
-
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
