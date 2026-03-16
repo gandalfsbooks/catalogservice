@@ -1,0 +1,551 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Catalog Service",
+    "description": "The Catalog Service manages the internal service and component registry for OpsLevel. It provides APIs for creating, reading, updating, and deleting catalog entries, as well as querying service metadata, ownership, and relationships.",
+    "version": "1.4.0",
+    "contact": {
+      "name": "Platform Engineering",
+      "email": "platform@example.com"
+    },
+    "license": {
+      "name": "Internal Use Only"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://catalog-service.internal.example.com/v1",
+      "description": "Production"
+    },
+    {
+      "url": "https://catalog-service.staging.example.com/v1",
+      "description": "Staging"
+    },
+    {
+      "url": "http://localhost:8080/v1",
+      "description": "Local Development"
+    }
+  ],
+  "tags": [
+    { "name": "Services", "description": "CRUD operations for catalog service entries" },
+    { "name": "Components", "description": "Manage sub-components within a service" },
+    { "name": "Ownership", "description": "Team and owner assignment" },
+    { "name": "Health", "description": "Service health and readiness probes" }
+  ],
+  "paths": {
+    "/services": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "List all services",
+        "description": "Returns a paginated list of all services registered in the catalog.",
+        "operationId": "listServices",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1, "minimum": 1 },
+            "description": "Page number for pagination"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 25, "maximum": 100 },
+            "description": "Number of results per page"
+          },
+          {
+            "name": "tier",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["tier_1", "tier_2", "tier_3"] },
+            "description": "Filter by service tier"
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by owning team slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A paginated list of services",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceListResponse"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "svc_01HXYZ1234ABCD",
+                      "name": "catalog-service",
+                      "description": "Manages the internal service registry",
+                      "tier": "tier_1",
+                      "language": "ruby",
+                      "owner": { "slug": "platform-eng", "name": "Platform Engineering" },
+                      "created_at": "2024-01-15T09:00:00Z",
+                      "updated_at": "2025-03-10T14:22:00Z"
+                    }
+                  ],
+                  "meta": { "page": 1, "per_page": 25, "total": 142 }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      },
+      "post": {
+        "tags": ["Services"],
+        "summary": "Register a new service",
+        "description": "Creates a new service entry in the catalog.",
+        "operationId": "createService",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ServiceCreateRequest" },
+              "example": {
+                "name": "payment-service",
+                "description": "Handles payment processing and billing",
+                "tier": "tier_1",
+                "language": "ruby",
+                "owner_slug": "billing-team",
+                "lifecycle": "production",
+                "tags": ["payments", "pci"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Service successfully created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Service" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      }
+    },
+    "/services/{service_id}": {
+      "parameters": [
+        {
+          "name": "service_id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "The unique ID or slug of the service"
+        }
+      ],
+      "get": {
+        "tags": ["Services"],
+        "summary": "Get a service by ID",
+        "description": "Returns full details for a single catalog service entry.",
+        "operationId": "getService",
+        "responses": {
+          "200": {
+            "description": "Service details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Service" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      },
+      "patch": {
+        "tags": ["Services"],
+        "summary": "Update a service",
+        "description": "Partially updates an existing service entry. Only provided fields are modified.",
+        "operationId": "updateService",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ServiceUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated service",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Service" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      },
+      "delete": {
+        "tags": ["Services"],
+        "summary": "Delete a service",
+        "description": "Removes a service entry from the catalog. This action is irreversible.",
+        "operationId": "deleteService",
+        "responses": {
+          "204": { "description": "Service deleted successfully" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      }
+    },
+    "/services/{service_id}/components": {
+      "parameters": [
+        {
+          "name": "service_id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "The unique ID or slug of the parent service"
+        }
+      ],
+      "get": {
+        "tags": ["Components"],
+        "summary": "List components for a service",
+        "description": "Returns all sub-components belonging to a service.",
+        "operationId": "listComponents",
+        "responses": {
+          "200": {
+            "description": "List of components",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Component" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      },
+      "post": {
+        "tags": ["Components"],
+        "summary": "Add a component to a service",
+        "description": "Creates a new sub-component under an existing service.",
+        "operationId": "createComponent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ComponentCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Component created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Component" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      }
+    },
+    "/services/{service_id}/owner": {
+      "parameters": [
+        {
+          "name": "service_id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "put": {
+        "tags": ["Ownership"],
+        "summary": "Assign or update service owner",
+        "description": "Sets the owning team for a service. Replaces any existing owner assignment.",
+        "operationId": "updateOwner",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["team_slug"],
+                "properties": {
+                  "team_slug": {
+                    "type": "string",
+                    "example": "platform-eng"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ownership updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Service" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "BearerToken": [] }]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness probe",
+        "description": "Returns 200 if the service process is alive.",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "Service is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness probe",
+        "description": "Returns 200 if the service is ready to serve traffic (DB connection established, etc.).",
+        "operationId": "readinessCheck",
+        "responses": {
+          "200": {
+            "description": "Service is ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ready" },
+                    "checks": {
+                      "type": "object",
+                      "properties": {
+                        "database": { "type": "string", "example": "ok" },
+                        "cache": { "type": "string", "example": "ok" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is not ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "not_ready" },
+                    "checks": {
+                      "type": "object",
+                      "properties": {
+                        "database": { "type": "string", "example": "error: connection refused" },
+                        "cache": { "type": "string", "example": "ok" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Service": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "svc_01HXYZ1234ABCD" },
+          "name": { "type": "string", "example": "catalog-service" },
+          "description": { "type": "string", "example": "Manages the internal service registry" },
+          "tier": { "type": "string", "enum": ["tier_1", "tier_2", "tier_3"], "example": "tier_1" },
+          "language": { "type": "string", "example": "ruby" },
+          "lifecycle": { "type": "string", "enum": ["pre_alpha", "alpha", "beta", "production", "deprecated", "end_of_life"], "example": "production" },
+          "tags": { "type": "array", "items": { "type": "string" }, "example": ["internal", "platform"] },
+          "owner": { "$ref": "#/components/schemas/TeamRef" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ServiceCreateRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "example": "catalog-service" },
+          "description": { "type": "string" },
+          "tier": { "type": "string", "enum": ["tier_1", "tier_2", "tier_3"] },
+          "language": { "type": "string", "example": "ruby" },
+          "lifecycle": { "type": "string", "enum": ["pre_alpha", "alpha", "beta", "production", "deprecated", "end_of_life"] },
+          "owner_slug": { "type": "string", "example": "platform-eng" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ServiceUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "tier": { "type": "string", "enum": ["tier_1", "tier_2", "tier_3"] },
+          "language": { "type": "string" },
+          "lifecycle": { "type": "string", "enum": ["pre_alpha", "alpha", "beta", "production", "deprecated", "end_of_life"] },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ServiceListResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Service" } },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "Component": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "cmp_01HABC5678EFGH" },
+          "name": { "type": "string", "example": "catalog-worker" },
+          "type": { "type": "string", "enum": ["service", "library", "database", "queue", "cronjob"], "example": "service" },
+          "description": { "type": "string" },
+          "service_id": { "type": "string", "example": "svc_01HXYZ1234ABCD" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ComponentCreateRequest": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string", "example": "catalog-worker" },
+          "type": { "type": "string", "enum": ["service", "library", "database", "queue", "cronjob"] },
+          "description": { "type": "string" }
+        }
+      },
+      "TeamRef": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string", "example": "platform-eng" },
+          "name": { "type": "string", "example": "Platform Engineering" }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "per_page": { "type": "integer", "example": 25 },
+          "total": { "type": "integer", "example": 142 }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "not_found" },
+          "message": { "type": "string", "example": "Service not found" },
+          "request_id": { "type": "string", "example": "req_01HX9ABC123" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request body or parameters",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "bad_request", "message": "name is required", "request_id": "req_01HX9ABC123" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid authentication token",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "unauthorized", "message": "Invalid or expired token", "request_id": "req_01HX9ABC123" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The requested resource was not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "not_found", "message": "Service not found", "request_id": "req_01HX9ABC123" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "A resource with this identifier already exists",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "conflict", "message": "A service with this name already exists", "request_id": "req_01HX9ABC123" }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Unexpected server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "internal_server_error", "message": "An unexpected error occurred", "request_id": "req_01HX9ABC123" }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "OpsLevel API token. Pass as `Authorization: Bearer <token>`."
+      }
+    }
+  }
+}
